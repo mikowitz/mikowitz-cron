@@ -1,0 +1,63 @@
+name: Check GitHub API Meta file
+
+on:
+  schedule:
+    - cron: "0 13 * * *"   # daily at 13:00 UTC (cron is always UTC)
+  workflow_dispatch:        # lets you trigger it by hand for testing
+
+permissions:
+  contents: read            # least privilege; raise only if you add issue/PR creation
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    env:
+      REMOTE_URL: https://api.github.com/meta
+      LOCAL_FILE: latest_gh_api_meta.json
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Fetch remote JSON
+        run: |
+          curl --fail --silent --show-error --location \
+            --retry 3 --retry-delay 5 \
+            -o remote.json "$REMOTE_URL"
+
+      - name: Validate JSON
+        run: |
+          jq empty remote.json
+          jq empty "$LOCAL_FILE"
+
+      - name: Normalize and compare
+        id: diff
+        run: |
+          # -S sorts keys so key order alone doesn't count as a change
+          jq -S . "$LOCAL_FILE" > local.normalized.json
+          jq -S . remote.json   > remote.normalized.json
+
+          if diff -u local.normalized.json remote.normalized.json > changes.diff; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No differences."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "## Remote JSON differs from \`$LOCAL_FILE\`"
+              echo '```diff'
+              cat changes.diff
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload diff
+        if: steps.diff.outputs.changed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: json-diff
+          path: changes.diff
+
+      - name: Handle difference
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          echo "::error::Remote JSON differs from $LOCAL_FILE"
+          exit 1
