@@ -57,7 +57,7 @@ jobs:
           path: changes.diff
 
       - name: Handle difference
-        if: steps.diff.outputs.changed ==
+        if: steps.diff.outputs.changed == 'true'
         run: |
           echo "::error::Remote JSON differs from $LOCAL_FILE"
           exit 1
