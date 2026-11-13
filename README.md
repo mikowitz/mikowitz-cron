@@ -1,0 +1,1 @@
+[![Check GitHub API Meta file](https://github.com/mikowitz/mikowitz-cron/actions/workflows/check_github_meta.yml/badge.svg?branch=main)](https://github.com/mikowitz/mikowitz-cron/actions/workflows/check_github_meta.yml)
